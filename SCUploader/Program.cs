@@ -6,6 +6,7 @@ using System.Configuration;
 using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 // Uses workbook made from SCExporter to upload data back to sharpcloud
 namespace SCUploader
@@ -53,7 +54,7 @@ namespace SCUploader
                         // adds new category to story if category is new
                         story.Category_AddNew(itemRange.Cells[i, 3].Value2);
                         // Sets color of category based on argb value
-                        string[] colors = itemRange.Cells[i, itemCol - 1].Value2.ToString().Split('|');
+                        string[] colors = itemRange.Cells[i, 10].Value2.ToString().Split('|');
                         var catColor = Color.FromArgb(Int32.Parse(colors[0]), Int32.Parse(colors[1]), Int32.Parse(colors[2]), Int32.Parse(colors[3]));
                         story.Category_FindByName(itemRange.Cells[i, 3].Value2).Color = catColor;
                     }
@@ -64,25 +65,26 @@ namespace SCUploader
                         // creates new item if item is not found
                         Item scItem = story.Item_AddNew(itemRange.Cells[i, 1].Value2);
                         // sets categiry for item
-                        scItem.Category = catID; 
+                        scItem.Category = catID;
+                        scItem.Description = itemRange.Cells[i, 2].Value2;
                         // checks subcategory of item
-                        if(itemRange.Cells[i, itemCol - 3].Value2 != "null")
+                        if(itemRange.Cells[i, 8].Value2 != "null")
                         {
                             // checks to see if subcategory is in the story
-                            if (catID.SubCategory_FindByName(itemRange.Cells[i, itemCol - 3].Value2) == null)
+                            if (catID.SubCategory_FindByName(itemRange.Cells[i, 8].Value2) == null)
                             {
                                 // adds subcategory to category of item if not found
-                                catID.SubCategory_AddNew(itemRange.Cells[i, itemCol - 3].Value2);
+                                catID.SubCategory_AddNew(itemRange.Cells[i, 8].Value2);
                             }
                             // sets subcategory to the item
-                            scItem.SubCategory = catID.SubCategory_FindByName(itemRange.Cells[i, itemCol - 3].Value2);
+                            scItem.SubCategory = catID.SubCategory_FindByName(itemRange.Cells[i, 8].Value2);
                             
                         }
                         // check to see if image path
-                        if (itemRange.Cells[i, itemCol].Value2.ToString() != "null")
+                        if (itemRange.Cells[i, 11].Value2.ToString() != "null")
                         {
                             // uploads image to sharpcloud if image path found
-                            FileInfo fileInfo = new FileInfo(itemRange.Cells[i, itemCol].Value2);
+                            FileInfo fileInfo = new FileInfo(itemRange.Cells[i, 11].Value2 + scItem.Name + ".jpg");
                             byte[] data = new byte[fileInfo.Length];
                             using (FileStream fs = fileInfo.OpenRead())
                             {
@@ -90,32 +92,50 @@ namespace SCUploader
                             }
                             scItem.ImageId = sc.UploadImageData(data, "", false);
                         }
-
-                        /*string[] resources = itemRange.Cells[i, itemCol - 5].Value2.ToString().Split('|');
-                        for(var z = 0; z < resources.Length - 1; z++)
+                        // Add resources to item
+                        if (itemRange.Cells[i, 5].Value2.ToString() != "null")
                         {
-                            string[] resLine = resources[i].Split('~');
-                            string[] downLine = resLine[1].Split('*');
-                            if(downLine.Length > 0)
+                            string[] resources = itemRange.Cells[i, 5].Value2.Split('|');
+                            for (var z = 0; z < resources.Length - 1; z++)
                             {
-                                scItem.Resource_AddFile(itemRange.Cells[i, itemCol].Value2.ToString() + downLine[0] + downLine[1], resLine[0], null);
+                                string[] resLine = resources[z].Split('~');
+                                string[] downLine = resLine[1].Split('*');
+                                // uploads file if there is a file extension
+                                if (downLine.Length > 1)
+                                {
+                                    scItem.Resource_AddFile(itemRange.Cells[i, 11].Value2.ToString() + downLine[0] + downLine[1], resLine[0], null);
+                                }
+                                // adds url to another site
+                                else
+                                {
+                                    scItem.Resource_AddName(resLine[0], null, resLine[1]);
+                                }
                             }
-                            else
-                            {
-                                scItem.Resource_AddName(resLine[0], null, resLine[1]);
-                            }
-                            
                         }
-
-                        string[] tags = itemRange.Cells[i, itemCol - 4].Value2.ToString().Split('|');
-                        for(var x = 0; x < tags.Length - 1; x++)
+                        // adds Tags to the item
+                        if(itemRange.Cells[i,6].Value2.ToString() != "null")
                         {
-                            scItem.Tag_AddNew(tags[i]);
+                            string[] tags = itemRange.Cells[i, 6].Value2.Split('|');
+                            for (var x = 0; x < tags.Length - 1; x++)
+                            {
+                                scItem.Tag_AddNew(tags[x]);
+                            }
                         }
-                        */
+                        // Adds Panels to the item
+                        if(itemRange.Cells[i,7].Value2.ToString() != "null")
+                        {
+                            string[] panLine = itemRange.Cells[i, 7].Value2.Split('|');
+                            for(var t = 0; t< panLine.Length - 1; t++)
+                            {
+                                string[] panData = panLine[t].Split('@');
+                                // sets panel type based off string
+                                if(panData[1] == "RichText")
+                                    scItem.Panel_Add(panData[0], Panel.PanelType.RichText, panData[2]);
+                                else if(panData[1] =="Attribute")
+                                    scItem.Panel_Add(panData[0], Panel.PanelType.Attribute, panData[2]);
+                            }
+                        }
                     }
-                   
-                   
                 }
             }
             // Parse through sheet 2
