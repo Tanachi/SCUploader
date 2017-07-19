@@ -1,4 +1,4 @@
-﻿using Microsoft.Office.Interop.Excel;
+using Microsoft.Office.Interop.Excel;
 using SC.API.ComInterop;
 using SC.API.ComInterop.Models;
 using System;
@@ -129,10 +129,30 @@ namespace SCUploader
                             {
                                 string[] panData = panLine[t].Split('@');
                                 // sets panel type based off string
-                                if(panData[1] == "RichText")
-                                    scItem.Panel_Add(panData[0], Panel.PanelType.RichText, panData[2]);
-                                else if(panData[1] =="Attribute")
-                                    scItem.Panel_Add(panData[0], Panel.PanelType.Attribute, panData[2]);
+                                switch (panData[1])
+                                {
+                                    case "RichText":
+                                        scItem.Panel_Add(panData[0], Panel.PanelType.RichText, panData[2]);
+                                        break;
+                                    case "Attribute":
+                                        scItem.Panel_Add(panData[0], Panel.PanelType.Attribute, panData[2]);
+                                        break;
+                                    case "CustomResource":
+                                        scItem.Panel_Add(panData[0], Panel.PanelType.CustomResource, panData[2]);
+                                        break;
+                                    case "HTML":
+                                        scItem.Panel_Add(panData[0], Panel.PanelType.HTML, panData[2]);
+                                        break;
+                                    case "Image":
+                                        scItem.Panel_Add(panData[0], Panel.PanelType.Image, panData[2]);
+                                        break;
+                                    case "Video":
+                                        scItem.Panel_Add(panData[0], Panel.PanelType.Video, panData[2]);
+                                        break;
+                                    case "Undefined":
+                                        scItem.Panel_Add(panData[0], Panel.PanelType.Undefined, panData[2]);
+                                        break;
+                                }
                             }
                         }
                     }
