@@ -42,6 +42,29 @@ namespace SCUploader
             int relRow = relRange.Rows.Count;
             int relCol = relRange.Columns.Count;
 
+            // add attribute to story
+            for (var k = 14; k < itemCol; k++)
+            {
+                string[] attribute = itemRange.Cells[1, k].Value2.Split('|');
+                switch (attribute[1])
+                {
+                    case "Text":
+                        story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.Text);
+                        break;
+                    case "Numeric":
+                        story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.Numeric);
+                        break;
+                    case "Date":
+                        story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.Date);
+                        break;
+                    case "List":
+                        story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.List);
+                        break;
+                    case "Location":
+                        story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.Location);
+                        break;
+                }
+            }
             // Parse through sheet 1
             for (int i = 2; i <= itemRow; i++)
             {
@@ -58,6 +81,7 @@ namespace SCUploader
                         var catColor = Color.FromArgb(Int32.Parse(colors[0]), Int32.Parse(colors[1]), Int32.Parse(colors[2]), Int32.Parse(colors[3]));
                         story.Category_FindByName(itemRange.Cells[i, 3].Value2).Color = catColor;
                     }
+                    
                     // check to see if item is in the story
                     if (story.Item_FindByName(itemRange.Cells[i,1].Value2) == null)
                     {
@@ -158,9 +182,23 @@ namespace SCUploader
                                 }
                             }
                         }
+                        // add attribute to the item
+                        for(var j = 13; j < itemCol; j++)
+                        {
+                            if(itemRange.Cells[i, j].Value2 != null)
+                            {
+                                string[] attribute = itemRange.Cells[1, j].Value2.Split('|');
+                                if (attribute[1] == "Date")
+                                    scItem.SetAttributeValue(story.Attribute_FindByName(attribute[0]), DateTime.FromOADate(itemRange.Cells[i, j].Value2));
+                                else 
+                                    scItem.SetAttributeValue(story.Attribute_FindByName(attribute[0]), itemRange.Cells[i, j].Value2);
+                            }  
+                        }
+
                     }
                 }
             }
+            
             // Parse through sheet 2
             for (int j = 2; j < relRow; j++)
             {
