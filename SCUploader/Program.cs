@@ -54,7 +54,7 @@ namespace SCUploader
                         // adds new category to story if category is new
                         story.Category_AddNew(itemRange.Cells[i, 3].Value2);
                         // Sets color of category based on argb value
-                        string[] colors = itemRange.Cells[i, 10].Value2.ToString().Split('|');
+                        string[] colors = itemRange.Cells[i, 11].Value2.ToString().Split('|');
                         var catColor = Color.FromArgb(Int32.Parse(colors[0]), Int32.Parse(colors[1]), Int32.Parse(colors[2]), Int32.Parse(colors[3]));
                         story.Category_FindByName(itemRange.Cells[i, 3].Value2).Color = catColor;
                     }
@@ -64,27 +64,30 @@ namespace SCUploader
                         var catID = story.Category_FindByName(itemRange.Cells[i, 3].Value2);
                         // creates new item if item is not found
                         Item scItem = story.Item_AddNew(itemRange.Cells[i, 1].Value2);
-                        // sets categiry for item
+                        // sets category for item
                         scItem.Category = catID;
                         scItem.Description = itemRange.Cells[i, 2].Value2;
+
+                        scItem.StartDate = DateTime.FromOADate(itemRange.Cells[i, 4].Value2);
+                        scItem.DurationInDays = itemRange.Cells[i, 5].Value2;
                         // checks subcategory of item
-                        if(itemRange.Cells[i, 8].Value2 != "null")
+                        if(itemRange.Cells[i, 9].Value2 != "null")
                         {
                             // checks to see if subcategory is in the story
-                            if (catID.SubCategory_FindByName(itemRange.Cells[i, 8].Value2) == null)
+                            if (catID.SubCategory_FindByName(itemRange.Cells[i, 9].Value2) == null)
                             {
                                 // adds subcategory to category of item if not found
-                                catID.SubCategory_AddNew(itemRange.Cells[i, 8].Value2);
+                                catID.SubCategory_AddNew(itemRange.Cells[i, 9].Value2);
                             }
                             // sets subcategory to the item
-                            scItem.SubCategory = catID.SubCategory_FindByName(itemRange.Cells[i, 8].Value2);
+                            scItem.SubCategory = catID.SubCategory_FindByName(itemRange.Cells[i, 9].Value2);
                             
                         }
-                        // check to see if image path
-                        if (itemRange.Cells[i, 11].Value2.ToString() != "null")
+                        // check to see if image path is there for item
+                        if (itemRange.Cells[i, 12].Value2.ToString() != "null")
                         {
                             // uploads image to sharpcloud if image path found
-                            FileInfo fileInfo = new FileInfo(itemRange.Cells[i, 11].Value2 + scItem.Name + ".jpg");
+                            FileInfo fileInfo = new FileInfo(itemRange.Cells[i, 12].Value2 + scItem.Name + ".jpg");
                             byte[] data = new byte[fileInfo.Length];
                             using (FileStream fs = fileInfo.OpenRead())
                             {
@@ -92,10 +95,10 @@ namespace SCUploader
                             }
                             scItem.ImageId = sc.UploadImageData(data, "", false);
                         }
-                        // Add resources to item
-                        if (itemRange.Cells[i, 5].Value2.ToString() != "null")
+                        // Check to see if item has resources
+                        if (itemRange.Cells[i, 6].Value2.ToString() != "null")
                         {
-                            string[] resources = itemRange.Cells[i, 5].Value2.Split('|');
+                            string[] resources = itemRange.Cells[i, 6].Value2.Split('|');
                             for (var z = 0; z < resources.Length - 1; z++)
                             {
                                 string[] resLine = resources[z].Split('~');
@@ -103,7 +106,7 @@ namespace SCUploader
                                 // uploads file if there is a file extension
                                 if (downLine.Length > 1)
                                 {
-                                    scItem.Resource_AddFile(itemRange.Cells[i, 11].Value2.ToString() + downLine[0] + downLine[1], resLine[0], null);
+                                    scItem.Resource_AddFile(itemRange.Cells[i, 12].Value2.ToString() + downLine[0] + downLine[1], resLine[0], null);
                                 }
                                 // adds url to another site
                                 else
@@ -113,18 +116,18 @@ namespace SCUploader
                             }
                         }
                         // adds Tags to the item
-                        if(itemRange.Cells[i,6].Value2.ToString() != "null")
+                        if(itemRange.Cells[i,7].Value2.ToString() != "null")
                         {
-                            string[] tags = itemRange.Cells[i, 6].Value2.Split('|');
+                            string[] tags = itemRange.Cells[i, 7].Value2.Split('|');
                             for (var x = 0; x < tags.Length - 1; x++)
                             {
                                 scItem.Tag_AddNew(tags[x]);
                             }
                         }
                         // Adds Panels to the item
-                        if(itemRange.Cells[i,7].Value2.ToString() != "null")
+                        if(itemRange.Cells[i,8].Value2.ToString() != "null")
                         {
-                            string[] panLine = itemRange.Cells[i, 7].Value2.Split('|');
+                            string[] panLine = itemRange.Cells[i, 8].Value2.Split('|');
                             for(var t = 0; t< panLine.Length - 1; t++)
                             {
                                 string[] panData = panLine[t].Split('@');
