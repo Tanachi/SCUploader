@@ -46,24 +46,29 @@ namespace SCUploader
             for (var k = 14; k < itemCol; k++)
             {
                 string[] attribute = itemRange.Cells[1, k].Value2.Split('|');
-                switch (attribute[1])
-                {
-                    case "Text":
-                        story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.Text);
-                        break;
-                    case "Numeric":
-                        story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.Numeric);
-                        break;
-                    case "Date":
-                        story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.Date);
-                        break;
-                    case "List":
-                        story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.List);
-                        break;
-                    case "Location":
-                        story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.Location);
-                        break;
-                }
+				if(story.Attribute_FindByName(attribute[0]) == null)
+				{
+					switch (attribute[1])
+					{
+						case "Text":
+							story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.Text);
+							break;
+						case "Numeric":
+							story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.Numeric);
+							break;
+						case "Date":
+							story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.Date);
+							break;
+						case "List":
+							story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.List);
+							break;
+						case "Location":
+							story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.Location);
+							break;
+					}
+					story.Attribute_FindByName(attribute[0]).Description = attribute[2];
+				}
+                
             }
             // Parse through sheet 1
             for (int i = 2; i <= itemRow; i++)
