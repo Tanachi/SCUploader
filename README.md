@@ -3,26 +3,39 @@ Used with the spreadsheet from SCExporter to recreate the visuals from a story.
 
 Spreadsheet must be in the folder where Program.CS is in
 
-Enter info in App.config
-# How to install
+### How to install from Visual Studio
+
+Create a new C# console application.
+
+In the project folder, replace program.cs and app.config with the ones from this repo.
+
+Insert combine.xlsx into the project folder
 
 Add References
 
 Project -> Add References
+
 System.Configuration
+
 System.Drawing
-
-COM
-
-Microsoft Excel 16.0 Object Library
 
 Install Packages
 
-Tools -> Nuget Package Manager -> Package Manager Console
+Tools -> Nuget Package Manager -> Package Manager Console 
+
+Enter these lines in the console in this order.
+
 Install-Package Newtonsoft.Json
-Install-Package SharpCloud.ClientAPI -Version 1.0.18
 
-# Issues:
-If the program crashes, a instance of excel will still be up. Must close in task manager.
+Install-Package SharpCloud.ClientAPI
 
+Install-Package Package EPPlus
+
+Example sharpcloud Url
+
+https://my.sharpcloud.com/html/#/story/Copy this Area/view/
+
+Enter your Sharpcloud username, password, and story-id in the app.config file.
+
+### Issues: 
 Program Crashes if you have any of the spreadsheets created from this program open during runtime.
