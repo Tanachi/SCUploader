@@ -183,7 +183,7 @@ namespace SCUploader
                         // add attribute to the item
                         for (var j = 13; j < itemColumns; j++)
                         {
-                            if (itemSheet.Cells[rowNum, j].Value != null)
+                            if (itemSheet.Cells[rowNum, j].Value != null && itemSheet.Cells[rowNum, j].Value.ToString() != "")
                             {
                                 string[] attribute = itemSheet.Cells[1, j].Value.ToString().Split('|');
                                 if (attribute[1] == "Date")
