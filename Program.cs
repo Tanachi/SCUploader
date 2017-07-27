@@ -1,4 +1,3 @@
-using Microsoft.Office.Interop.Excel;
 using SC.API.ComInterop;
 using SC.API.ComInterop.Models;
 using System;
@@ -6,7 +5,9 @@ using System.Configuration;
 using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Threading;
+using System.Linq;
+using OfficeOpenXml;
+using System.Text;
 
 // Uses workbook made from SCExporter to upload data back to sharpcloud
 namespace SCUploader
@@ -15,6 +16,7 @@ namespace SCUploader
     {
         static void Main(string[] args)
         {
+            string fileName = System.IO.Directory.GetParent(System.IO.Directory.GetParent(Environment.CurrentDirectory).ToString()).ToString() + "\\combine.xlsx";
             // Get info from config file
             var teamstoryid = ConfigurationManager.AppSettings["teamstoryid"];
             var portfolioid = ConfigurationManager.AppSettings["portfolioid"];
@@ -28,95 +30,82 @@ namespace SCUploader
             var sc = new SharpCloudApi(userid, passwd, URL);
             var story = sc.LoadStory(storyID);
             // Load data from excel
-            var app = new Application();
-            Workbook sharpBook = app.Workbooks.Open
-                (System.IO.Directory.GetParent
-                (System.IO.Directory.GetParent
-                (Environment.CurrentDirectory).ToString()).ToString() + "\\combine.xlsx");
-            Worksheet item = sharpBook.Sheets[1];
-            Worksheet relationship = sharpBook.Sheets[2];
-            Range itemRange = item.UsedRange;
-            int itemRow = itemRange.Rows.Count;
-            int itemCol = itemRange.Columns.Count;
-            Range relRange = relationship.UsedRange;
-            int relRow = relRange.Rows.Count;
-            int relCol = relRange.Columns.Count;
+            using (ExcelPackage xlPackage = new ExcelPackage(new FileInfo(fileName)))
+            {
+                // Generate data from worksheets
+                var itemSheet = xlPackage.Workbook.Worksheets.First(); 
+                var relSheet = xlPackage.Workbook.Worksheets.ElementAt(1);
+                var relRows = relSheet.Dimension.End.Row;
+                var relCols = relSheet.Dimension.End.Column;
+                var itemRows = itemSheet.Dimension.End.Row;
+                var itemColumns = itemSheet.Dimension.End.Column;
+                // add attribute to story
+                for (var k = 13; k < itemColumns; k++)
+                {
+                    string[] attribute = itemSheet.Cells[1, k].Value.ToString().Split('|');
+                    if (story.Attribute_FindByName(attribute[0]) == null)
+                    {
+                        switch (attribute[1])
+                        {
+                            case "Text":
+                                story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.Text);
+                                break;
+                            case "Numeric":
+                                story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.Numeric);
+                                break;
+                            case "Date":
+                                story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.Date);
+                                break;
+                            case "List":
+                                story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.List);
+                                break;
+                            case "Location":
+                                story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.Location);
+                                break;
+                        }
+                        story.Attribute_FindByName(attribute[0]).Description = attribute[2];
+                    }
 
-            // add attribute to story
-            for (var k = 14; k < itemCol; k++)
-            {
-                string[] attribute = itemRange.Cells[1, k].Value2.Split('|');
-				if(story.Attribute_FindByName(attribute[0]) == null)
-				{
-					switch (attribute[1])
-					{
-						case "Text":
-							story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.Text);
-							break;
-						case "Numeric":
-							story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.Numeric);
-							break;
-						case "Date":
-							story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.Date);
-							break;
-						case "List":
-							story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.List);
-							break;
-						case "Location":
-							story.Attribute_Add(attribute[0], SC.API.ComInterop.Models.Attribute.AttributeType.Location);
-							break;
-					}
-					story.Attribute_FindByName(attribute[0]).Description = attribute[2];
-				}
-                
-            }
-            // Parse through sheet 1
-            for (int i = 2; i <= itemRow; i++)
-            {
-                // uploads item
-                if (itemRange.Cells[i, 3] != null)
+                }
+                // go through item sheet
+                for (int rowNum = 2; rowNum <= itemRows; rowNum++) //selet starting row here
                 {
                     // check to see if category is in the story
-                    if (story.Category_FindByName(itemRange.Cells[i, 3].Value2) == null)
+                    if (story.Category_FindByName(itemSheet.Cells[rowNum, 3].Value.ToString()) == null)
                     {
                         // adds new category to story if category is new
-                        story.Category_AddNew(itemRange.Cells[i, 3].Value2);
+                        story.Category_AddNew(itemSheet.Cells[rowNum, 3].Value.ToString());
                         // Sets color of category based on argb value
-                        string[] colors = itemRange.Cells[i, 11].Value2.ToString().Split('|');
+                        string[] colors = itemSheet.Cells[rowNum, 11].Value.ToString().Split('|');
                         var catColor = Color.FromArgb(Int32.Parse(colors[0]), Int32.Parse(colors[1]), Int32.Parse(colors[2]), Int32.Parse(colors[3]));
-                        story.Category_FindByName(itemRange.Cells[i, 3].Value2).Color = catColor;
+                        story.Category_FindByName(itemSheet.Cells[rowNum, 3].Value.ToString()).Color = catColor;
                     }
-                    
-                    // check to see if item is in the story
-                    if (story.Item_FindByName(itemRange.Cells[i,1].Value2) == null)
+                    // Check to see if item is already in the story
+                    if (story.Item_FindByName(itemSheet.Cells[rowNum, 1].Value.ToString()) == null)
                     {
-                        var catID = story.Category_FindByName(itemRange.Cells[i, 3].Value2);
-                        // creates new item if item is not found
-                        Item scItem = story.Item_AddNew(itemRange.Cells[i, 1].Value2);
-                        // sets category for item
+                        var catID = story.Category_FindByName(itemSheet.Cells[rowNum, 3].Value.ToString());
+                        Item scItem = story.Item_AddNew(itemSheet.Cells[rowNum, 1].Value.ToString());
                         scItem.Category = catID;
-                        scItem.Description = itemRange.Cells[i, 2].Value2;
-
-                        scItem.StartDate = DateTime.FromOADate(itemRange.Cells[i, 4].Value2);
-                        scItem.DurationInDays = itemRange.Cells[i, 5].Value2;
+                        scItem.Description = itemSheet.Cells[rowNum, 2].GetValue<string>();
+                        scItem.StartDate = Convert.ToDateTime(itemSheet.Cells[rowNum, 4].Value.ToString());
+                        scItem.DurationInDays = itemSheet.Cells[rowNum, 2].GetValue<int>();
                         // checks subcategory of item
-                        if(itemRange.Cells[i, 9].Value2 != "null")
+                        if (itemSheet.Cells[rowNum, 9].GetValue<string>() != "null")
                         {
                             // checks to see if subcategory is in the story
-                            if (catID.SubCategory_FindByName(itemRange.Cells[i, 9].Value2) == null)
+                            if (catID.SubCategory_FindByName(itemSheet.Cells[rowNum, 9].GetValue<string>()) == null)
                             {
                                 // adds subcategory to category of item if not found
-                                catID.SubCategory_AddNew(itemRange.Cells[i, 9].Value2);
+                                catID.SubCategory_AddNew(itemSheet.Cells[rowNum, 9].GetValue<string>());
                             }
                             // sets subcategory to the item
-                            scItem.SubCategory = catID.SubCategory_FindByName(itemRange.Cells[i, 9].Value2);
-                            
+                            scItem.SubCategory = catID.SubCategory_FindByName(itemSheet.Cells[rowNum, 9].GetValue<string>());
                         }
                         // check to see if image path is there for item
-                        if (itemRange.Cells[i, 12].Value2.ToString() != "null")
+                        if (itemSheet.Cells[rowNum, 12].GetValue<string>() != "null")
                         {
                             // uploads image to sharpcloud if image path found
-                            FileInfo fileInfo = new FileInfo(itemRange.Cells[i, 12].Value2 + scItem.Name + ".jpg");
+                            FileInfo fileInfo = new FileInfo(itemSheet.Cells[rowNum, 12].GetValue<string>() + scItem.Name + ".jpg");
                             byte[] data = new byte[fileInfo.Length];
                             using (FileStream fs = fileInfo.OpenRead())
                             {
@@ -125,9 +114,10 @@ namespace SCUploader
                             scItem.ImageId = sc.UploadImageData(data, "", false);
                         }
                         // Check to see if item has resources
-                        if (itemRange.Cells[i, 6].Value2.ToString() != "null")
+                        if (itemSheet.Cells[rowNum, 6].GetValue<string>() != "null")
                         {
-                            string[] resources = itemRange.Cells[i, 6].Value2.Split('|');
+
+                            string[] resources = itemSheet.Cells[rowNum, 6].GetValue<string>().Split('|');
                             for (var z = 0; z < resources.Length - 1; z++)
                             {
                                 string[] resLine = resources[z].Split('~');
@@ -135,7 +125,7 @@ namespace SCUploader
                                 // uploads file if there is a file extension
                                 if (downLine.Length > 1)
                                 {
-                                    scItem.Resource_AddFile(itemRange.Cells[i, 12].Value2.ToString() + downLine[0] + downLine[1], resLine[0], null);
+                                    scItem.Resource_AddFile(itemSheet.Cells[rowNum, 12].GetValue<string>() + downLine[0] + downLine[1], resLine[0], null);
                                 }
                                 // adds url to another site
                                 else
@@ -144,20 +134,20 @@ namespace SCUploader
                                 }
                             }
                         }
-                        // adds Tags to the item
-                        if(itemRange.Cells[i,7].Value2.ToString() != "null")
+                        // Add Tags to the item
+                        if (itemSheet.Cells[rowNum, 7].GetValue<string>() != "null")
                         {
-                            string[] tags = itemRange.Cells[i, 7].Value2.Split('|');
+                            string[] tags = itemSheet.Cells[rowNum, 7].GetValue<string>().Split('|');
                             for (var x = 0; x < tags.Length - 1; x++)
                             {
                                 scItem.Tag_AddNew(tags[x]);
                             }
                         }
                         // Adds Panels to the item
-                        if(itemRange.Cells[i,8].Value2.ToString() != "null")
+                        if (itemSheet.Cells[rowNum, 8].GetValue<string>() != "null")
                         {
-                            string[] panLine = itemRange.Cells[i, 8].Value2.Split('|');
-                            for(var t = 0; t< panLine.Length - 1; t++)
+                            string[] panLine = itemSheet.Cells[rowNum, 8].GetValue<string>().Split('|');
+                            for (var t = 0; t < panLine.Length - 1; t++)
                             {
                                 string[] panData = panLine[t].Split('@');
                                 // sets panel type based off string
@@ -188,42 +178,31 @@ namespace SCUploader
                             }
                         }
                         // add attribute to the item
-                        for(var j = 13; j < itemCol; j++)
+                        for (var j = 13; j < itemColumns; j++)
                         {
-                            if(itemRange.Cells[i, j].Value2 != null)
+                            if (itemSheet.Cells[rowNum, j].Value != null)
                             {
-                                string[] attribute = itemRange.Cells[1, j].Value2.Split('|');
+                                string[] attribute = itemSheet.Cells[1, j].Value.ToString().Split('|');
                                 if (attribute[1] == "Date")
-                                    scItem.SetAttributeValue(story.Attribute_FindByName(attribute[0]), DateTime.FromOADate(itemRange.Cells[i, j].Value2));
+                                    scItem.SetAttributeValue(story.Attribute_FindByName(attribute[0]), Convert.ToDateTime(itemSheet.Cells[rowNum, j].Value.ToString()));
                                 else 
-                                    scItem.SetAttributeValue(story.Attribute_FindByName(attribute[0]), itemRange.Cells[i, j].Value2);
-                            }  
+                                    scItem.SetAttributeValue(story.Attribute_FindByName(attribute[0]), itemSheet.Cells[rowNum, j].GetValue<string>());
+                                   
+                            }
                         }
-
                     }
+                       
+                }
+                for(int rowNum = 2; rowNum <= relRows; rowNum++)
+                {
+                    // Establish relationships between 2 items
+                    var currentItem = story.Item_FindByName(relSheet.Cells[rowNum, 1].Value.ToString());
+                    var nextItem = story.Item_FindByName(relSheet.Cells[rowNum, 2].Value.ToString());
+                    var rel = story.Relationship_AddNew(currentItem, nextItem);
+                    rel.Direction = Relationship.RelationshipDirection.None;
                 }
             }
-            
-            // Parse through sheet 2
-            for (int j = 2; j < relRow; j++)
-            {
-                // Establish relationships between 2 items
-                var currentItem = story.Item_FindByName(relRange.Cells[j, 1].Value2.ToString());
-                var nextItem = story.Item_FindByName(relRange.Cells[j, 2].Value2.ToString());
-                var rel = story.Relationship_AddNew(currentItem, nextItem);
-                rel.Comment = "";
-                rel.Direction = Relationship.RelationshipDirection.None;
-            }
-            // Save story
             story.Save();
-            //close and release excel
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            Marshal.ReleaseComObject(itemRange);
-            Marshal.ReleaseComObject(item);
-            Marshal.ReleaseComObject(relationship);
-            Marshal.ReleaseComObject(relRange);
-            sharpBook.Close();
         }
     }
 }
