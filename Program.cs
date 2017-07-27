@@ -33,7 +33,7 @@ namespace SCUploader
             using (ExcelPackage xlPackage = new ExcelPackage(new FileInfo(fileName)))
             {
                 // Generate data from worksheets
-                var itemSheet = xlPackage.Workbook.Worksheets.First(); 
+                var itemSheet = xlPackage.Workbook.Worksheets.First();
                 var relSheet = xlPackage.Workbook.Worksheets.ElementAt(1);
                 var relRows = relSheet.Dimension.End.Row;
                 var relCols = relSheet.Dimension.End.Column;
@@ -105,18 +105,20 @@ namespace SCUploader
                         if (itemSheet.Cells[rowNum, 12].GetValue<string>() != "null")
                         {
                             // uploads image to sharpcloud if image path found
-                            FileInfo fileInfo = new FileInfo(itemSheet.Cells[rowNum, 12].GetValue<string>() + scItem.Name + ".jpg");
-                            byte[] data = new byte[fileInfo.Length];
-                            using (FileStream fs = fileInfo.OpenRead())
+                            if(File.Exists(itemSheet.Cells[rowNum, 12].GetValue<string>() + scItem.Name + ".jpg"))
                             {
-                                fs.Read(data, 0, data.Length);
+                                FileInfo fileInfo = new FileInfo(itemSheet.Cells[rowNum, 12].GetValue<string>() + scItem.Name + ".jpg");
+                                byte[] data = new byte[fileInfo.Length];
+                                using (FileStream fs = fileInfo.OpenRead())
+                                {
+                                    fs.Read(data, 0, data.Length);
+                                }
+                                scItem.ImageId = sc.UploadImageData(data, "", false);
                             }
-                            scItem.ImageId = sc.UploadImageData(data, "", false);
                         }
                         // Check to see if item has resources
                         if (itemSheet.Cells[rowNum, 6].GetValue<string>() != "null")
                         {
-
                             string[] resources = itemSheet.Cells[rowNum, 6].GetValue<string>().Split('|');
                             for (var z = 0; z < resources.Length - 1; z++)
                             {
@@ -125,6 +127,7 @@ namespace SCUploader
                                 // uploads file if there is a file extension
                                 if (downLine.Length > 1)
                                 {
+                                    if(File.Exists(itemSheet.Cells[rowNum, 12].GetValue<string>() + downLine[0] + downLine[1]))
                                     scItem.Resource_AddFile(itemSheet.Cells[rowNum, 12].GetValue<string>() + downLine[0] + downLine[1], resLine[0], null);
                                 }
                                 // adds url to another site
@@ -185,15 +188,15 @@ namespace SCUploader
                                 string[] attribute = itemSheet.Cells[1, j].Value.ToString().Split('|');
                                 if (attribute[1] == "Date")
                                     scItem.SetAttributeValue(story.Attribute_FindByName(attribute[0]), Convert.ToDateTime(itemSheet.Cells[rowNum, j].Value.ToString()));
-                                else 
+                                else
                                     scItem.SetAttributeValue(story.Attribute_FindByName(attribute[0]), itemSheet.Cells[rowNum, j].GetValue<string>());
-                                   
+
                             }
                         }
                     }
-                       
+
                 }
-                for(int rowNum = 2; rowNum <= relRows; rowNum++)
+                for (int rowNum = 2; rowNum <= relRows; rowNum++)
                 {
                     // Establish relationships between 2 items
                     var currentItem = story.Item_FindByName(relSheet.Cells[rowNum, 1].Value.ToString());
