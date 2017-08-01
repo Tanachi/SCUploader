@@ -29,7 +29,7 @@ Install-Package Newtonsoft.Json
 
 Install-Package SharpCloud.ClientAPI
 
-Install-Package Package EPPlus
+Install-Package EPPlus
 
 Example sharpcloud Url
 
