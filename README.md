@@ -39,3 +39,5 @@ Enter your Sharpcloud username, password, and story-id in the app.config file.
 
 ### Issues: 
 Program Crashes if you have any of the spreadsheets created from this program open during runtime.
+
+After uploading your spreadsheet to a sharpcloud story, the subcategories will appear twice. Refreshing this will remove this problem. 
