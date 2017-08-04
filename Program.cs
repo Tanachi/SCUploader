@@ -94,6 +94,30 @@ namespace SCUploader
                 firstHalf.Join();
                 secondHalf.Join();
                 Console.WriteLine("Adding Relationships");
+                string[] attSplit = null;
+                // Add attribute relationship to story
+                for (var i = 6; i < relCols; i++)
+                {
+                    attSplit = relSheet.Cells[1, i].Value.ToString().Split('|');
+                    if (story.RelationshipAttribute_FindByName(attSplit[0]) == null)
+                    {
+                        switch (attSplit[1])
+                        {
+                            case "Numeric":
+                                story.RelationshipAttribute_Add(attSplit[0], RelationshipAttribute.RelationshipAttributeType.Numeric);
+                                break;
+                            case "Date":
+                                story.RelationshipAttribute_Add(attSplit[0], RelationshipAttribute.RelationshipAttributeType.Date);
+                                break;
+                            case "List":
+                                story.RelationshipAttribute_Add(attSplit[0], RelationshipAttribute.RelationshipAttributeType.List);
+                                break;
+                            case "Text":
+                                story.RelationshipAttribute_Add(attSplit[0], RelationshipAttribute.RelationshipAttributeType.Text);
+                                break;
+                        }
+                    }
+                }
                 // Add relationships to items
                 for (int rowNum = 2; rowNum <= relRows; rowNum++)
                 {
@@ -117,9 +141,24 @@ namespace SCUploader
                             rel.Direction = Relationship.RelationshipDirection.Both;
                             break;
                     }
+                    string[] tagArray = null;
+                    if (relSheet.Cells[rowNum, 4].Value != null && relSheet.Cells[rowNum,4].Value != "")
+                    {
+                        tagArray = relSheet.Cells[rowNum, 4].ToString().Split('|');
+                        for(var i = 0; i < tagArray.Length - 1 ; i++)
+                        {
+                            rel.Tag_AddNew(tagArray[i]);
+
+                        }
+                    }
+                    var relCom = story.Item_FindByName(relSheet.Cells[rowNum, 5].Value.ToString());
+                    for(var k = 6; k < relCols; k++)
+                    {
+                        attSplit = relSheet.Cells[1, k].Value.ToString().Split('|');
+                        rel.SetAttributeValue(story.RelationshipAttribute_FindByName(attSplit[0]), relSheet.Cells[rowNum,k].Value.ToString());
+                    }
                 }
             }
-            
             story.Save();
         }
         public static void addItems(object Sharp)
@@ -133,13 +172,9 @@ namespace SCUploader
             int start = 2;
             if (Thread.CurrentThread.Name == "secondHalf")
             {
-                start = itemRows / 2;
+                start = 3;
             }
-            else
-            {
-                itemRows = itemRows / 2;
-            }
-            for (int rowNum = start; rowNum <= itemRows; rowNum++) //selet starting row here
+            for (int rowNum = start; rowNum <= itemRows; rowNum += 2) //selet starting row here
             {
                 // check to see if category is in the story
                 if (story.Category_FindByName(itemSheet.Cells[rowNum, 3].Value.ToString()) == null)
@@ -155,7 +190,6 @@ namespace SCUploader
                 // Check to see if item is already in the story
                 if (story.Item_FindByName(itemSheet.Cells[rowNum, 1].Value.ToString()) == null)
                 {
-                    Console.WriteLine(Thread.CurrentThread.Name + " adding Item");
                     var catID = story.Category_FindByName(itemSheet.Cells[rowNum, 3].Value.ToString());
                     Item scItem = story.Item_AddNew(itemSheet.Cells[rowNum, 1].Value.ToString());
                     scItem.Category = catID;
@@ -225,32 +259,36 @@ namespace SCUploader
                         string[] panLine = itemSheet.Cells[rowNum, 8].GetValue<string>().Split('|');
                         for (var t = 0; t < panLine.Length - 1; t++)
                         {
+                            
                             string[] panData = panLine[t].Split('@');
-                            // sets panel type based off string
-                            switch (panData[1])
+                            if (scItem.Panel_FindByTitle(panData[0]) == null)
                             {
-                                case "RichText":
-                                    scItem.Panel_Add(panData[0], Panel.PanelType.RichText, panData[2]);
-                                    break;
-                                case "Attribute":
-                                    scItem.Panel_Add(panData[0], Panel.PanelType.Attribute, panData[2]);
-                                    break;
-                                case "CustomResource":
-                                    scItem.Panel_Add(panData[0], Panel.PanelType.CustomResource, panData[2]);
-                                    break;
-                                case "HTML":
-                                    scItem.Panel_Add(panData[0], Panel.PanelType.HTML, panData[2]);
-                                    break;
-                                case "Image":
-                                    scItem.Panel_Add(panData[0], Panel.PanelType.Image, panData[2]);
-                                    break;
-                                case "Video":
-                                    scItem.Panel_Add(panData[0], Panel.PanelType.Video, panData[2]);
-                                    break;
-                                case "Undefined":
-                                    scItem.Panel_Add(panData[0], Panel.PanelType.Undefined, panData[2]);
-                                    break;
-                            }
+                                // sets panel type based off string
+                                switch (panData[1])
+                                {
+                                    case "RichText":
+                                        scItem.Panel_Add(panData[0], Panel.PanelType.RichText, panData[2]);
+                                        break;
+                                    case "Attribute":
+                                        scItem.Panel_Add(panData[0], Panel.PanelType.Attribute, panData[2]);
+                                        break;
+                                    case "CustomResource":
+                                        scItem.Panel_Add(panData[0], Panel.PanelType.CustomResource, panData[2]);
+                                        break;
+                                    case "HTML":
+                                        scItem.Panel_Add(panData[0], Panel.PanelType.HTML, panData[2]);
+                                        break;
+                                    case "Image":
+                                        scItem.Panel_Add(panData[0], Panel.PanelType.Image, panData[2]);
+                                        break;
+                                    case "Video":
+                                        scItem.Panel_Add(panData[0], Panel.PanelType.Video, panData[2]);
+                                        break;
+                                    case "Undefined":
+                                        scItem.Panel_Add(panData[0], Panel.PanelType.Undefined, panData[2]);
+                                        break;
+                                }
+                            }                                
                         }
                     }
                     // add attribute to the item
@@ -261,10 +299,12 @@ namespace SCUploader
                             string[] attribute = itemSheet.Cells[1, j].Value.ToString().Split('|');
                             if (attribute[1] == "Date")
                             {
-                                scItem.SetAttributeValue(story.Attribute_FindByName(attribute[0]), Convert.ToDateTime(itemSheet.Cells[rowNum, j].GetValue<string>()));
+                                scItem.SetAttributeValue(story.Attribute_FindByName(attribute[0]), DateTime.FromOADate(Double.Parse(itemSheet.Cells[rowNum, j].Value.ToString())));
                             }
+                            else if(attribute[1] == "Numeric")
+                                scItem.SetAttributeValue(story.Attribute_FindByName(attribute[0]), Double.Parse(itemSheet.Cells[rowNum, j].Value.ToString()));
                             else
-                                scItem.SetAttributeValue(story.Attribute_FindByName(attribute[0]), itemSheet.Cells[rowNum, j].GetValue<string>());
+                                scItem.SetAttributeValue(story.Attribute_FindByName(attribute[0]), itemSheet.Cells[rowNum, j].Value.ToString());
 
                         }
                     }
